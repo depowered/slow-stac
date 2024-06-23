@@ -1,0 +1,11 @@
+[package]
+name = "slow-stac"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+aws-config = "1.5.3"
+aws-sdk-s3 = "1.38.0"
+regex = "1.10.5"
+tokio = { version = "1.38.0", features = ["full"] }
