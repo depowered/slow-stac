@@ -1,16 +1,22 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::Result;
-
-use crate::s3_operations::{get_object, S3Object};
+use s3_operations::download_s3_object;
+use stac_operations::{read_item_from_file, AssetInfo};
 
 pub mod s3_operations;
+pub mod stac_operations;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let url = "https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com/sentinel-2-c1-l2a/7/V/DG/2024/5/S2A_T07VDG_20240529T205023_L2A/TCI.tif";
-    let src = S3Object::from_url(&url).unwrap();
-    let dst = PathBuf::from("./outputs/S2A_T07VDG_20240529T205023_L2A_TCI.tif");
-    let _ = get_object(src, dst).await?;
+    let input = Path::new("./inputs/S2A_T08VPH_20240504T195929_L2A.geojson");
+    let item = read_item_from_file(input)?;
+    let key = "visual";
+
+    let asset_info = AssetInfo::from_item(&item, key)?;
+    let output_path = format!("./outputs/{}_TCI.tif", asset_info.item_id);
+    println!("Attempting to download remote file to: {}", &output_path);
+    download_s3_object(&asset_info.href, &output_path).await?;
+
     Ok(())
 }

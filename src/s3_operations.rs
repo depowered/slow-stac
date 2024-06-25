@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use aws_config::{BehaviorVersion, Region};
 use regex::Regex;
+use std::fs::OpenOptions;
+use std::path::Path;
 use std::{fs::File, io::Write, path::PathBuf};
 
 use aws_sdk_s3::Client;
@@ -43,7 +45,7 @@ pub async fn get_anon_client(region: String) -> Client {
     Client::new(&config)
 }
 
-pub async fn get_object(src: S3Object, dst: PathBuf) -> Result<usize, anyhow::Error> {
+pub async fn get_object(src: S3Object, dst: PathBuf) -> Result<usize> {
     let mut file = File::create(dst.clone())?;
 
     let client = get_anon_client(src.region).await;
@@ -63,6 +65,68 @@ pub async fn get_object(src: S3Object, dst: PathBuf) -> Result<usize, anyhow::Er
     }
 
     Ok(byte_count)
+}
+
+pub async fn download_s3_object(url: &str, output_path: &str) -> Result<()> {
+    let object = S3Object::from_url(url)?;
+    let client = get_anon_client(object.region).await;
+
+    if Path::new(output_path).exists() {
+        println!("Output file already exists");
+        return Ok(());
+    }
+
+    let partial_path = format!("{}.partial", output_path);
+
+    // Check if partial file exists and get its size
+    let mut partial_file = OpenOptions::new()
+        .read(true)
+        .create(true)
+        .append(true)
+        .open(&partial_path)?;
+    let mut byte_count = partial_file.metadata()?.len();
+
+    // Get object details from S3
+    let head_object = client
+        .head_object()
+        .bucket(&object.bucket)
+        .key(&object.key)
+        .send()
+        .await?;
+
+    let total_size = head_object
+        .content_length()
+        .ok_or(anyhow!("Error reading size of remote object"))? as u64;
+
+    let progress = (byte_count as f64 / total_size as f64) * 100.;
+    if progress > 0.0 {
+        println!("Resuming download from {:.2}% completion", progress);
+    }
+
+    if byte_count < total_size {
+        println!("Downloading...");
+        let range = format!("bytes={}-{}", byte_count, total_size - 1);
+
+        let mut response = client
+            .get_object()
+            .bucket(&object.bucket)
+            .key(&object.key)
+            .range(range)
+            .send()
+            .await?;
+
+        while let Some(bytes) = response.body.try_next().await? {
+            let bytes_len = bytes.len() as u64;
+            partial_file.write_all(&bytes)?;
+            byte_count += bytes_len;
+        }
+    }
+
+    println!("Download complete");
+    // Rename the file to remove .partial suffix
+    std::fs::rename(partial_path, output_path)?;
+
+    Ok(())
 }
 
 #[cfg(test)]
