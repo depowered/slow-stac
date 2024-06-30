@@ -1966,6 +1966,7 @@ dependencies = [
  "serde_json",
  "stac",
  "tokio",
+ "url",
 ]
 
 [[package]]
