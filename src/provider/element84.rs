@@ -45,12 +45,7 @@ async fn extract_remote_file_info(item: Item, asset: impl AssetKey) -> Option<Re
             .to_owned(),
     );
 
-    Some(RemoteFileInfo {
-        id: id,
-        url: url,
-        filesize: filesize,
-        checksum: checksum,
-    })
+    Some(RemoteFileInfo { id, url, filesize, checksum })
 }
 
 pub async fn get_remote_file_info(

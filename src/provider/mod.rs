@@ -1,5 +1,14 @@
 use url::Url;
 pub mod element84;
+pub mod copernicus;
+
+pub struct S3Asset {
+    pub item_id: String,
+    pub s3_bucket: String,
+    pub s3_key: String,
+    pub filesize: Option<u64>,
+    pub checksum: Option<String>,
+}
 
 pub struct RemoteFileInfo {
     pub id: String,
