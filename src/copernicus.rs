@@ -2,8 +2,8 @@ pub mod sentinel2level2a {
     use super::manifest::{DataObject, Manifest};
     use crate::download_plan::{DownloadPlan, DownloadTask};
     use crate::image_selection::{ImageSelection, Product};
+    use crate::provider::Provider;
     use anyhow::{anyhow, Result};
-    use aws_sdk_s3::Client;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use toml;
@@ -86,8 +86,8 @@ pub mod sentinel2level2a {
             .collect::<Result<Vec<_>>>() // Collect into Result<Vec<DataObject>>
     }
 
-    pub async fn generate_download_plan(
-        client: &Client,
+    pub async fn generate_download_plan<T: Provider>(
+        provider: &T,
         selection: &ImageSelection,
         output_dir: PathBuf,
     ) -> Result<DownloadPlan> {
@@ -101,7 +101,7 @@ pub mod sentinel2level2a {
         let mut tasks: Vec<DownloadTask> = vec![];
 
         for id in ids_to_download {
-            let manifest = Manifest::fetch(client, &id).await?;
+            let manifest = Manifest::fetch(provider, &id).await?;
             let data_objects = manifest.parse()?;
             let filtered_data_objects = filter_data_objects(&products_to_download, &data_objects)?;
 
@@ -125,15 +125,17 @@ pub mod sentinel2level2a {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use crate::provider::Copernicus;
         use crate::s3;
 
         const TEST_OUTPUT_DIR: &str = "/tmp/slow-stac-test";
         #[tokio::test]
         async fn test_generate_download_plan() {
             let client = s3::client_from_profile("copernicus").await;
+            let provider = Copernicus::new(client);
             let selection = ImageSelection::from_template(&image_selection_toml());
             let output_dir = PathBuf::from(TEST_OUTPUT_DIR);
-            let download_plan = generate_download_plan(&client, &selection, output_dir)
+            let download_plan = generate_download_plan(&provider, &selection, output_dir)
                 .await
                 .unwrap();
             let path = PathBuf::from(TEST_OUTPUT_DIR).join("download_plan.json");
@@ -144,9 +146,8 @@ pub mod sentinel2level2a {
 }
 
 mod manifest {
-    use crate::s3;
+    use crate::provider::Provider;
     use anyhow::{anyhow, Result};
-    use aws_sdk_s3::Client;
     use roxmltree::Node;
     use stac::Item;
 
@@ -157,7 +158,7 @@ mod manifest {
     }
 
     impl Manifest {
-        pub async fn fetch(client: &Client, id: &str) -> Result<Self> {
+        pub async fn fetch<T: Provider>(provider: &T, id: &str) -> Result<Self> {
             // Get the STAC Item corresponding to the provided id
             let url = format!(
                 "https://catalogue.dataspace.copernicus.eu/stac/collections/SENTINEL-2/items/{id}",
@@ -170,14 +171,7 @@ mod manifest {
 
             let key = format!("{}/manifest.safe", &prefix);
 
-            let object = client
-                .get_object()
-                .bucket(&bucket)
-                .key(&key)
-                .customize()
-                .map_request(s3::strip_x_id_get_object_param_from_uri)
-                .send()
-                .await?;
+            let object = provider.get_object(&bucket, &key).await?;
 
             let data = object.body.collect().await?.to_vec();
             let content = String::from_utf8(data)?;

@@ -1,11 +1,10 @@
+use crate::provider::Provider;
 use anyhow::{anyhow, Result};
-use aws_sdk_s3::Client;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use crate::s3;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DownloadTask {
@@ -44,16 +43,21 @@ impl DownloadPlan {
         Ok(())
     }
 
-    pub async fn execute(self: &Self, client: &Client) -> Result<()> {
+    pub async fn execute<T: Provider>(self: &Self, provider: &T) -> Result<()> {
         for task in self.tasks.iter() {
             println!("Current task: {:?}", task);
-            try_download(client, &task.bucket, &task.key, &task.output).await?;
+            try_download(provider, &task.bucket, &task.key, &task.output).await?;
         }
         Ok(())
     }
 }
 
-pub async fn try_download(client: &Client, bucket: &str, key: &str, output: &str) -> Result<()> {
+pub async fn try_download<T: Provider>(
+    provider: &T,
+    bucket: &str,
+    key: &str,
+    output: &str,
+) -> Result<()> {
     // Check if the output file already exists; return early if so
     let dst = Path::new(output);
     if dst.exists() {
@@ -77,7 +81,7 @@ pub async fn try_download(client: &Client, bucket: &str, key: &str, output: &str
     let mut byte_count = partial_file.metadata()?.len();
 
     // Get object details from S3
-    let head_object = client.head_object().bucket(bucket).key(key).send().await?;
+    let head_object = provider.head_object(bucket, key).await?;
 
     let total_size = head_object
         .content_length()
@@ -90,16 +94,9 @@ pub async fn try_download(client: &Client, bucket: &str, key: &str, output: &str
 
     if byte_count < total_size {
         println!("Downloading...");
-        let range = format!("bytes={}-{}", byte_count, total_size - 1);
 
-        let mut response = client
-            .get_object()
-            .bucket(bucket)
-            .key(key)
-            .range(range)
-            .customize()
-            .map_request(s3::strip_x_id_get_object_param_from_uri)
-            .send()
+        let mut response = provider
+            .get_object_range(bucket, key, byte_count, total_size - 1)
             .await?;
 
         while let Some(bytes) = response.body.try_next().await? {

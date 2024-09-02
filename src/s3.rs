@@ -1,8 +1,6 @@
 //! Utility functions for creating s3 clients and modifying s3 requests
 use aws_sdk_s3::config::Region;
 use aws_sdk_s3::Client;
-use aws_smithy_runtime_api::client::orchestrator::HttpRequest;
-use thiserror::Error;
 
 const DEFAULT_REGION: &str = "us-east-1";
 
@@ -28,23 +26,4 @@ pub async fn anon_client() -> Client {
         .load()
         .await;
     Client::new(&config)
-}
-
-/// The copernicus S3 API throws a fit if the param 'x-id=GetObject' is present in the request. This
-/// function can be passed to the `GetObjectFluentBuilder::map_request()` method to strip the offending
-/// param from the generated uri.
-pub fn strip_x_id_get_object_param_from_uri(
-    req: HttpRequest,
-) -> std::result::Result<HttpRequest, crate::provider::copernicus::MapError> {
-    let mut r = req
-        .try_clone()
-        .ok_or(crate::provider::copernicus::MapError::Clone)?;
-    let _ = r.set_uri(r.uri().replace("x-id=GetObject", ""));
-    Ok(r)
-}
-
-#[derive(Error, Debug)]
-enum MapError {
-    #[error("Unable to clone request")]
-    Clone,
 }
