@@ -1,5 +1,7 @@
 //! Utility functions for creating s3 clients and modifying s3 requests
 use aws_sdk_s3::config::Region;
+use aws_sdk_s3::operation::get_object::GetObjectOutput;
+use aws_sdk_s3::operation::head_object::HeadObjectOutput;
 use aws_sdk_s3::Client;
 
 const DEFAULT_REGION: &str = "us-east-1";
@@ -26,4 +28,18 @@ pub async fn anon_client() -> Client {
         .load()
         .await;
     Client::new(&config)
+}
+
+pub trait S3ObjOps {
+    async fn head_object(self: &Self, bucket: &str, key: &str) -> anyhow::Result<HeadObjectOutput>;
+
+    async fn get_object(self: &Self, bucket: &str, key: &str) -> anyhow::Result<GetObjectOutput>;
+
+    async fn get_object_range(
+        self: &Self,
+        bucket: &str,
+        key: &str,
+        start_byte: u64,
+        end_byte: u64,
+    ) -> anyhow::Result<GetObjectOutput>;
 }

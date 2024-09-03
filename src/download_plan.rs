@@ -1,4 +1,4 @@
-use crate::provider::Provider;
+use crate::s3::S3ObjOps;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -43,7 +43,7 @@ impl DownloadPlan {
         Ok(())
     }
 
-    pub async fn execute<T: Provider>(self: &Self, provider: &T) -> Result<()> {
+    pub async fn execute(self: &Self, provider: &impl S3ObjOps) -> Result<()> {
         for task in self.tasks.iter() {
             println!("Current task: {:?}", task);
             try_download(provider, &task.bucket, &task.key, &task.output).await?;
@@ -52,8 +52,8 @@ impl DownloadPlan {
     }
 }
 
-pub async fn try_download<T: Provider>(
-    provider: &T,
+pub async fn try_download(
+    provider: &impl S3ObjOps,
     bucket: &str,
     key: &str,
     output: &str,

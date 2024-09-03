@@ -1,30 +1,15 @@
-use crate::error::MapError;
-use crate::s3;
-use anyhow::Result;
+use aws_sdk_s3::Client;
 use aws_sdk_s3::operation::get_object::GetObjectOutput;
 use aws_sdk_s3::operation::head_object::HeadObjectOutput;
-use aws_sdk_s3::Client;
 use aws_smithy_runtime_api::client::orchestrator::HttpRequest;
+use crate::error::MapError;
+use crate::s3;
 
-pub trait Provider {
-    async fn head_object(self: &Self, bucket: &str, key: &str) -> Result<HeadObjectOutput>;
-
-    async fn get_object(self: &Self, bucket: &str, key: &str) -> Result<GetObjectOutput>;
-
-    async fn get_object_range(
-        self: &Self,
-        bucket: &str,
-        key: &str,
-        start_byte: u64,
-        end_byte: u64,
-    ) -> Result<GetObjectOutput>;
-}
-
-pub struct Copernicus {
+pub struct Provider {
     client: Client,
 }
 
-impl Copernicus {
+impl Provider {
     pub fn new(client: Client) -> Self {
         Self { client }
     }
@@ -34,8 +19,8 @@ impl Copernicus {
         Self { client }
     }
 }
-impl Provider for Copernicus {
-    async fn head_object(self: &Self, bucket: &str, key: &str) -> Result<HeadObjectOutput> {
+impl s3::S3ObjOps for Provider {
+    async fn head_object(self: &Self, bucket: &str, key: &str) -> anyhow::Result<HeadObjectOutput> {
         let head = self
             .client
             .head_object()
@@ -46,7 +31,7 @@ impl Provider for Copernicus {
         Ok(head)
     }
 
-    async fn get_object(self: &Self, bucket: &str, key: &str) -> Result<GetObjectOutput> {
+    async fn get_object(self: &Self, bucket: &str, key: &str) -> anyhow::Result<GetObjectOutput> {
         let object = self
             .client
             .get_object()
@@ -65,7 +50,7 @@ impl Provider for Copernicus {
         key: &str,
         start_byte: u64,
         end_byte: u64,
-    ) -> Result<GetObjectOutput> {
+    ) -> anyhow::Result<GetObjectOutput> {
         let range = format!("bytes={}-{}", start_byte, end_byte);
         let object = self
             .client
@@ -86,7 +71,7 @@ impl Provider for Copernicus {
 /// param from the generated uri.
 fn strip_x_id_get_object_param_from_uri(
     req: HttpRequest,
-) -> std::result::Result<HttpRequest, MapError> {
+) -> Result<HttpRequest, MapError> {
     let mut r = req.try_clone().ok_or(MapError::Clone)?;
     let _ = r.set_uri(r.uri().replace("x-id=GetObject", ""));
     Ok(r)
