@@ -1,10 +1,9 @@
 use anyhow::Result;
 use copernicus::sentinel2level2a;
+use copernicus::Provider;
 use image_selection::ImageSelection;
 use std::path::PathBuf;
-use copernicus::Provider;
 
-mod collection;
 mod copernicus;
 mod download_plan;
 mod error;

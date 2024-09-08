@@ -31,6 +31,8 @@ impl DownloadPlan {
     pub fn new(tasks: Vec<DownloadTask>) -> Self {
         Self { tasks }
     }
+    
+    #[allow(dead_code)]
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let plan: Self = serde_json::from_str(&content)?;

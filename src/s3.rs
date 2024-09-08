@@ -20,6 +20,7 @@ pub async fn client_from_profile(profile_name: &str) -> Client {
     Client::from_conf(s3_config)
 }
 
+#[allow(dead_code)]
 pub async fn anon_client() -> Client {
     let region = Region::new(DEFAULT_REGION);
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())

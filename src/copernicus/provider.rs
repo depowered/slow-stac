@@ -10,6 +10,7 @@ pub struct Provider {
 }
 
 impl Provider {
+    #[allow(dead_code)]
     pub fn new(client: Client) -> Self {
         Self { client }
     }
