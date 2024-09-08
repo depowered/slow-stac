@@ -1,16 +1,10 @@
 use anyhow::Result;
-use copernicus::sentinel2level2a;
-use copernicus::Provider;
-use image_selection::ImageSelection;
 use std::path::PathBuf;
 
-mod copernicus;
-mod download_plan;
-mod error;
-mod image_selection;
-mod s3;
-pub mod s3_operations;
-pub mod stac_operations;
+extern crate slow_stac;
+use slow_stac::copernicus::sentinel2level2a;
+use slow_stac::copernicus::Provider;
+use slow_stac::image_selection::ImageSelection;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -574,6 +574,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets 0.52.5",
 ]
@@ -2022,12 +2023,14 @@ dependencies = [
 
 [[package]]
 name = "stac"
-version = "0.7.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77a1a5f55d16199f9b75c42f0742766ce7e34418e27e4618de8bcb88c1ce3d67"
+checksum = "62e6f79a07c8de68bc1761b9aa8500d858d40327f76d086c2b2ecbe4b4b76f74"
 dependencies = [
  "chrono",
  "geojson",
+ "log",
+ "mime",
  "reqwest",
  "serde",
  "serde_json",
