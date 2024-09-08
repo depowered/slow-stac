@@ -19,3 +19,4 @@ roxmltree = "0.20.0"
 thiserror = "1.0.63"
 aws-smithy-runtime-api = "1.7.1"
 toml = "0.8.16"
+clap = { version = "4.5.17", features = ["derive"] }

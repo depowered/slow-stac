@@ -90,7 +90,7 @@ pub async fn generate_download_plan(
             tasks.push(task)
         }
     }
-    Ok(DownloadPlan::new(tasks))
+    Ok(DownloadPlan::new(&selection.id, tasks))
 }
 
 fn filter_data_objects(
@@ -124,7 +124,7 @@ mod tests {
     use crate::copernicus::Provider;
     use crate::s3;
 
-    const TEST_OUTPUT_DIR: &str = "/tmp/slow-stac-test";
+    const TEST_OUTPUT_DIR: &str = "/tmp";
     #[tokio::test]
     async fn test_generate_download_plan() {
         let client = s3::client_from_profile("copernicus").await;

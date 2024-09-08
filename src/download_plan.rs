@@ -24,14 +24,18 @@ impl DownloadTask {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DownloadPlan {
+    pub selection_id: String,
     tasks: Vec<DownloadTask>,
 }
 
 impl DownloadPlan {
-    pub fn new(tasks: Vec<DownloadTask>) -> Self {
-        Self { tasks }
+    pub fn new(selection_id: &str, tasks: Vec<DownloadTask>) -> Self {
+        Self {
+            selection_id: selection_id.to_string(),
+            tasks,
+        }
     }
-    
+
     #[allow(dead_code)]
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = fs::read_to_string(path)?;
@@ -123,6 +127,7 @@ mod tests {
 
     fn mock_download_plan() -> DownloadPlan {
         DownloadPlan {
+            selection_id: "provider.collection".to_string(),
             tasks: vec![
                 DownloadTask {
                     bucket: "mybucket".to_string(),

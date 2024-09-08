@@ -79,7 +79,7 @@ pub async fn generate_download_plan(
             "Did not find matching assets for specified products"
         ))?;
         for asset in assets {
-            let S3UrlParts {bucket, key, ..} = get_s3_url_parts(&asset.href)?;
+            let S3UrlParts { bucket, key, .. } = get_s3_url_parts(&asset.href)?;
 
             let file_name = Path::new(&key).file_name().unwrap();
             let output = output_dir.join(&id).join(file_name);
@@ -88,7 +88,7 @@ pub async fn generate_download_plan(
             tasks.push(task)
         }
     }
-    Ok(DownloadPlan::new(tasks))
+    Ok(DownloadPlan::new(&selection.id, tasks))
 }
 
 async fn fetch_single_item(collection: &str, id: &str) -> Result<Item> {

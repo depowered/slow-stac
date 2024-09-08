@@ -7,7 +7,7 @@ use toml;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ImageSelection {
-    id: String,
+    pub id: String,
     provider: String,
     name: String,
     description: String,
@@ -71,7 +71,6 @@ impl ImageSelection {
         Some(ids)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
