@@ -2,7 +2,7 @@ use aws_sdk_s3::Client;
 use aws_sdk_s3::operation::get_object::GetObjectOutput;
 use aws_sdk_s3::operation::head_object::HeadObjectOutput;
 use aws_smithy_runtime_api::client::orchestrator::HttpRequest;
-use crate::error::MapError;
+use thiserror::Error;
 use crate::s3;
 
 pub struct Provider {
@@ -76,4 +76,10 @@ fn strip_x_id_get_object_param_from_uri(
     let mut r = req.try_clone().ok_or(MapError::Clone)?;
     let _ = r.set_uri(r.uri().replace("x-id=GetObject", ""));
     Ok(r)
+}
+
+#[derive(Error, Debug)]
+pub enum MapError {
+    #[error("Unable to clone request")]
+    Clone,
 }
