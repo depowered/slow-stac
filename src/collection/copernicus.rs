@@ -1,14 +1,15 @@
-use crate::ImageSelection;
-use crate::Result;
-
-
 pub mod sentinel2level2 {
-    use crate::CollectionKind;
-    use super::*;
+    use crate::download_plan::DownloadPlan;
+    use crate::ImageSelection;
+    use crate::Result;
+    use crate::{Client, CollectionKind};
+    use std::path::PathBuf;
 
-    pub async fn get_stac_item(id: &str) -> Result<stac::Item> {
-        let url = format!("https://catalogue.dataspace.copernicus.eu/stac/collections/SENTINEL-2/items/{id}");
-        let item = reqwest::get(url).await?.json::<stac::Item>().await?;
+    pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
+        let url = format!(
+            "https://catalogue.dataspace.copernicus.eu/stac/collections/SENTINEL-2/items/{id}"
+        );
+        let item = client.web_get(&url).await?.json::<stac::Item>().await?;
         Ok(item)
     }
 
@@ -60,6 +61,13 @@ pub mod sentinel2level2 {
             name = "True Color"
             download = true
         }).expect("Compiler will catch any syntax errors")
+    }
+    pub async fn create_download_plan(
+        _client: &Client,
+        _image_selection: &ImageSelection,
+        _output_dir: PathBuf,
+    ) -> Result<DownloadPlan> {
+        todo!()
     }
 
     #[cfg(test)]

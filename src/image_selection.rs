@@ -39,8 +39,7 @@ impl ImageSelection {
 
     #[allow(dead_code)]
     pub fn from_template(table: &toml::Table) -> Result<Self> {
-        let selection: Self =
-            toml::from_str(&table.to_string())?;
+        let selection: Self = toml::from_str(&table.to_string())?;
         Ok(selection)
     }
 }

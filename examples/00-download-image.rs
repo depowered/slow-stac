@@ -1,13 +1,17 @@
+use slow_stac_reorg::{Client, Result};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use slow_stac_reorg::{Client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let bucket = "eodata";
     let key = "Sentinel-2/MSI/L2A/2024/05/04/S2A_MSIL2A_20240504T195901_N0510_R128_T08VPH_20240505T015750.SAFE/GRANULE/L2A_T08VPH_A046314_20240504T195929/IMG_DATA/R10m/T08VPH_20240504T195901_TCI_10m.jp2";
-    let client = Client::builder().with_aws_profile("copernicus").set_region("us-west-2").build().await?;
+    let client = Client::builder()
+        .with_aws_profile("copernicus")
+        .set_region("us-west-2")
+        .build()
+        .await?;
 
     let head = client.s3_head_object(bucket, key).await?;
     println!("Object size: {} bytes", head.content_length.unwrap());

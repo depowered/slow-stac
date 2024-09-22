@@ -1,14 +1,15 @@
-use crate::ImageSelection;
-use crate::Result;
-
 pub mod sentinel2level2 {
-    use crate::CollectionKind;
-    use super::*;
+    use crate::DownloadPlan;
+    use crate::ImageSelection;
+    use crate::Result;
+    use crate::{Client, CollectionKind};
+    use std::path::PathBuf;
 
-    pub async fn get_stac_item(id: &str) -> Result<stac::Item> {
-        let url =
-            format!("https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/{id}");
-        let item = reqwest::get(url).await?.json::<stac::Item>().await?;
+    pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
+        let url = format!(
+            "https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/{id}"
+        );
+        let item = client.web_get(&url).await?.json::<stac::Item>().await?;
         Ok(item)
     }
 
@@ -60,6 +61,14 @@ pub mod sentinel2level2 {
             name = "True Color"
             download = true
         }).expect("Toml syntax error")
+    }
+
+    pub async fn create_download_plan(
+        _client: &Client,
+        _image_selection: &ImageSelection,
+        _output_dir: PathBuf,
+    ) -> Result<DownloadPlan> {
+        todo!()
     }
 
     #[cfg(test)]

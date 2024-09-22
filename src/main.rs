@@ -1,8 +1,8 @@
-use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
-use slow_stac_reorg::Result;
-use slow_stac_reorg::ImageSelection;
 use slow_stac_reorg::CollectionKind;
+use slow_stac_reorg::ImageSelection;
+use slow_stac_reorg::Result;
+use std::path::PathBuf;
 
 /// A tool for downloading satellite imagery from S3 on slow or unstable connections
 #[derive(Parser)]
@@ -67,7 +67,10 @@ async fn main() -> Result<()> {
             print!("Writing image selection .toml to {:?}", selection);
             image_selection.write(selection)?;
         }
-        Command::Plan { selection, output_dir, } => {
+        Command::Plan {
+            selection,
+            output_dir,
+        } => {
             println!("Reading selection toml from {:?}", selection);
             let _image_selection = ImageSelection::read(selection)?;
 

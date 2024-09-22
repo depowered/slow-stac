@@ -1,5 +1,5 @@
-use aws_sdk_s3::operation::head_object::HeadObjectOutput;
 use aws_sdk_s3::operation::get_object::GetObjectOutput;
+use aws_sdk_s3::operation::head_object::HeadObjectOutput;
 
 use crate::{Error, Result};
 
@@ -17,6 +17,11 @@ impl Client {
         ClientBuilder::default()
     }
 
+    pub async fn web_get(&self, url: &str) -> Result<reqwest::Response> {
+        let req = reqwest::get(url).await?;
+        Ok(req)
+    }
+
     pub async fn s3_head_object(&self, bucket: &str, key: &str) -> Result<HeadObjectOutput> {
         let head = self
             .s3_client
@@ -28,12 +33,13 @@ impl Client {
         Ok(head)
     }
 
-    pub async fn s3_get_object(&self, bucket: &str, key: &str, range: Option<Range>) -> Result<GetObjectOutput> {
-        let builder = self
-            .s3_client
-            .get_object()
-            .bucket(bucket)
-            .key(key);
+    pub async fn s3_get_object(
+        &self,
+        bucket: &str,
+        key: &str,
+        range: Option<Range>,
+    ) -> Result<GetObjectOutput> {
+        let builder = self.s3_client.get_object().bucket(bucket).key(key);
 
         let builder = match range {
             Some(r) => builder.range(format!("bytes={}-{}", r.start_byte, r.end_byte)),
@@ -46,9 +52,11 @@ impl Client {
                     .customize()
                     .mutate_request(|req| {
                         let _ = req.set_uri(req.uri().replace("x-id=GetObject", ""));
-                    }).send().await?
-            },
-            _ => builder.send().await?
+                    })
+                    .send()
+                    .await?
+            }
+            _ => builder.send().await?,
         };
 
         Ok(object)
@@ -79,9 +87,12 @@ impl ClientBuilder {
         self
     }
 
-
     pub async fn build(self) -> Result<Client> {
-        let base_config = self.config_loader.ok_or_else(|| Error::AWSProfileNotSet)?.load().await;
+        let base_config = self
+            .config_loader
+            .ok_or_else(|| Error::AWSProfileNotSet)?
+            .load()
+            .await;
         let region = self.region.ok_or_else(|| Error::AWSRegionNotSet)?;
         let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
             .region(aws_sdk_s3::config::Region::new(region))
@@ -89,7 +100,7 @@ impl ClientBuilder {
             .build();
 
         Ok(Client {
-            s3_client: aws_sdk_s3::Client::from_conf(s3_config)
+            s3_client: aws_sdk_s3::Client::from_conf(s3_config),
         })
     }
 }
