@@ -1,8 +1,8 @@
 pub mod sentinel2level2 {
     use crate::download_plan::DownloadPlan;
-    use crate::ImageSelection;
     use crate::Result;
     use crate::{Client, CollectionKind};
+    use crate::{Error, ImageSelection};
     use std::path::PathBuf;
 
     pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
@@ -11,6 +11,24 @@ pub mod sentinel2level2 {
         );
         let item = client.web_get(&url).await?.json::<stac::Item>().await?;
         Ok(item)
+    }
+
+    pub async fn create_download_plan(
+        _client: &Client,
+        image_selection: &ImageSelection,
+        _output_dir: PathBuf,
+    ) -> Result<DownloadPlan> {
+        let _ids_to_download = image_selection
+            .ids_to_download()
+            .ok_or(Error::NoIdsToDownload)?;
+        let _products_to_download = image_selection
+            .products_to_download()
+            .ok_or(Error::NoProductsSelected)?;
+
+        Ok(DownloadPlan {
+            kind: CollectionKind::CopernicusSentinel2Level2A,
+            tasks: vec![],
+        })
     }
 
     pub fn image_selection_template() -> ImageSelection {
@@ -62,19 +80,12 @@ pub mod sentinel2level2 {
             download = true
         }).expect("Compiler will catch any syntax errors")
     }
-    pub async fn create_download_plan(
-        _client: &Client,
-        _image_selection: &ImageSelection,
-        _output_dir: PathBuf,
-    ) -> Result<DownloadPlan> {
-        todo!()
-    }
 
     #[cfg(test)]
     mod tests {
         #[test]
         fn test_image_selection_template_deserializes() {
-            let template = crate::element84::sentinel2level2::image_selection_template();
+            let _template = crate::element84::sentinel2level2::image_selection_template();
         }
     }
 }

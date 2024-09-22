@@ -23,6 +23,9 @@ pub enum Error {
     DeserializeToml(toml::de::Error),
     #[from]
     SerializeToml(toml::ser::Error),
+    NoIdsToDownload,
+    NoProductsSelected,
+    NoMatchingAsset,
 
     // -- Download Plan
     #[from]

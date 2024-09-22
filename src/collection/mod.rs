@@ -18,7 +18,9 @@ pub enum CollectionKind {
 impl CollectionKind {
     pub fn bucket_name(&self) -> String {
         match self {
-            CollectionKind::Element84Sentinel2Level2A => String::from("earth-search"),
+            CollectionKind::Element84Sentinel2Level2A => {
+                String::from("e84-earth-search-sentinel-data")
+            }
             CollectionKind::CopernicusSentinel2Level2A => String::from("eodata"),
         }
     }
@@ -110,6 +112,7 @@ impl CollectionKind {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<String> for CollectionKind {
     fn into(self) -> String {
         match self {

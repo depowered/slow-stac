@@ -1,9 +1,10 @@
 pub mod sentinel2level2 {
-    use crate::DownloadPlan;
+    use crate::util;
     use crate::ImageSelection;
     use crate::Result;
     use crate::{Client, CollectionKind};
-    use std::path::PathBuf;
+    use crate::{DownloadPlan, DownloadTask, Error};
+    use std::path::{Path, PathBuf};
 
     pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
         let url = format!(
@@ -11,6 +12,45 @@ pub mod sentinel2level2 {
         );
         let item = client.web_get(&url).await?.json::<stac::Item>().await?;
         Ok(item)
+    }
+    pub async fn create_download_plan(
+        client: &Client,
+        image_selection: &ImageSelection,
+        output_dir: PathBuf,
+    ) -> Result<DownloadPlan> {
+        let ids_to_download = image_selection
+            .ids_to_download()
+            .ok_or(Error::NoIdsToDownload)?;
+        let products_to_download = image_selection
+            .products_to_download()
+            .ok_or(Error::NoProductsSelected)?;
+
+        let mut tasks: Vec<DownloadTask> = vec![];
+
+        for id in ids_to_download {
+            let item = get_stac_item(client, &id).await?;
+
+            for product in &products_to_download {
+                let asset = item.assets.get(&product.id).ok_or(Error::NoMatchingAsset)?;
+                let bucket = util::extract_s3_bucket(&asset.href)
+                    .ok_or(Error::S3UrlParseError(asset.href.clone()))?;
+                let key = util::extract_s3_key(&asset.href)
+                    .ok_or(Error::S3UrlParseError(asset.href.clone()))?;
+                let name = Path::new(&key).file_name().unwrap();
+                let output = output_dir.join(&id).join(name);
+
+                let task = DownloadTask {
+                    bucket,
+                    key,
+                    output,
+                };
+                tasks.push(task)
+            }
+        }
+        Ok(DownloadPlan {
+            kind: CollectionKind::CopernicusSentinel2Level2A,
+            tasks,
+        })
     }
 
     pub fn image_selection_template() -> ImageSelection {
@@ -63,21 +103,13 @@ pub mod sentinel2level2 {
         }).expect("Toml syntax error")
     }
 
-    pub async fn create_download_plan(
-        _client: &Client,
-        _image_selection: &ImageSelection,
-        _output_dir: PathBuf,
-    ) -> Result<DownloadPlan> {
-        todo!()
-    }
-
     #[cfg(test)]
     mod tests {
         use super::*;
 
         #[test]
         fn test_image_selection_template_deserializes() {
-            let template = image_selection_template();
+            let _template = image_selection_template();
         }
     }
 }
