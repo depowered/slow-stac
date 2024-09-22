@@ -37,6 +37,9 @@ pub enum Error {
 
     #[from]
     IO(std::io::Error),
+
+    // -- Utils
+    S3UrlParseError(String),
 }
 
 impl core::fmt::Display for Error {

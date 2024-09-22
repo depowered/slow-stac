@@ -3,6 +3,7 @@ mod collection;
 mod download_plan;
 mod error;
 mod image_selection;
+pub mod util;
 
 pub use client::{Client, ClientBuilder};
 pub use collection::copernicus;
