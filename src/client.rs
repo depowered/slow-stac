@@ -81,8 +81,8 @@ impl ClientBuilder {
 
 
     pub async fn build(self) -> Result<Client> {
-        let base_config = self.config_loader.ok_or_else(|| Error::CredentialsNotSet)?.load().await;
-        let region = self.region.ok_or_else(|| Error::RegionNotSet)?;
+        let base_config = self.config_loader.ok_or_else(|| Error::AWSProfileNotSet)?.load().await;
+        let region = self.region.ok_or_else(|| Error::AWSRegionNotSet)?;
         let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
             .region(aws_sdk_s3::config::Region::new(region))
             .force_path_style(true)
@@ -103,7 +103,7 @@ mod tests {
         let result = Client::builder().set_region("us-west-2").build().await;
 
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::CredentialsNotSet)));
+        assert!(matches!(result, Err(Error::AWSProfileNotSet)));
     }
 
     #[tokio::test]
@@ -111,6 +111,6 @@ mod tests {
         let result = Client::builder().without_credentials().build().await;
 
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::RegionNotSet)));
+        assert!(matches!(result, Err(Error::AWSRegionNotSet)));
     }
 }

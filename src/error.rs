@@ -7,16 +7,26 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, From)]
 pub enum Error {
     // -- ClientBuilder
-    RegionNotSet,
-    CredentialsNotSet,
+    AWSRegionNotSet,
+    AWSProfileNotSet,
 
     // -- Client
     #[from]
-    S3HeadObjectError(aws_sdk_s3::error::SdkError<HeadObjectError>),
+    S3HeadObject(aws_sdk_s3::error::SdkError<HeadObjectError>),
     #[from]
-    S3GetObjectError(aws_sdk_s3::error::SdkError<GetObjectError>),
+    S3GetObject(aws_sdk_s3::error::SdkError<GetObjectError>),
     #[from]
     S3ByteStream(aws_smithy_types::byte_stream::error::Error),
+
+    // -- ImageSelection
+    #[from]
+    DeserializeToml(toml::de::Error),
+    #[from]
+    SerializeToml(toml::ser::Error),
+
+    // -- Collection
+    #[from]
+    FetchItem(reqwest::Error),
 
     #[from]
     IO(std::io::Error),
