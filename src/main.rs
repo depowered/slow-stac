@@ -51,8 +51,8 @@ enum Command {
 
 fn map_cli_collection(c: &Collection) -> CollectionKind {
     match c {
-        Collection::E84Sentinel2 => CollectionKind::Element84Sentinel2Level2,
-        Collection::CopSentinel2 => CollectionKind::CopernicusSentinel2Level2,
+        Collection::E84Sentinel2 => CollectionKind::Element84Sentinel2Level2A,
+        Collection::CopSentinel2 => CollectionKind::CopernicusSentinel2Level2A,
     }
 }
 

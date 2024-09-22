@@ -3,15 +3,14 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use crate::Result;
+use crate::{CollectionKind, Result};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ImageSelection {
-    pub id: String,
-    provider: String,
+    collection_kind: String,
     name: String,
     description: String,
-    docs: String,
+    web_app: String,
     ids_to_download: Vec<String>,
     products: Vec<Product>,
 }
@@ -23,6 +22,7 @@ pub struct Product {
     download: bool,
 }
 
+// IO functions
 impl ImageSelection {
     pub fn read<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = fs::read_to_string(path)?;
@@ -43,12 +43,15 @@ impl ImageSelection {
             toml::from_str(&table.to_string())?;
         Ok(selection)
     }
+}
 
+// Filter functions
+impl ImageSelection {
     pub fn products_to_download(&self) -> Option<Vec<Product>> {
         let products = self.products.clone();
         let to_download = products
             .into_iter()
-            .filter(|p| p.download )
+            .filter(|p| p.download)
             .collect::<Vec<_>>();
         if to_download.is_empty() {
             return None;
@@ -69,5 +72,13 @@ impl ImageSelection {
             .into_iter()
             .collect::<Vec<_>>();
         Some(ids)
+    }
+}
+
+// Util functions
+impl ImageSelection {
+    pub fn collection_kind(&self) -> Result<CollectionKind> {
+        let kind = self.collection_kind.as_str().parse::<CollectionKind>()?;
+        Ok(kind)
     }
 }

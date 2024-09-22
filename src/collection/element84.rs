@@ -2,6 +2,7 @@ use crate::ImageSelection;
 use crate::Result;
 
 pub mod sentinel2level2 {
+    use crate::CollectionKind;
     use super::*;
 
     pub async fn get_stac_item(id: &str) -> Result<stac::Item> {
@@ -12,10 +13,9 @@ pub mod sentinel2level2 {
     }
 
     pub fn image_selection_template() -> ImageSelection {
+        let kind: String = CollectionKind::CopernicusSentinel2Level2A.into();
         ImageSelection::from_template(&toml::toml! {
-            id = "element84.sentinel2collection1level2a"
-
-            provider = "Element84"
+            collection_kind = kind
 
             name = "Sentinel-2 Collection 1 Level 2A Surface Reflectance"
 
@@ -26,7 +26,7 @@ pub mod sentinel2level2 {
             in particular ozone, oxygen and water vapour and the correction of absorption and\n\
             scattering due to aerosol particles. Level 2A product are considered an ARD product."
 
-            docs = "https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a"
+            web_app = "https://console.earth-search.aws.element84.com/"
 
             ids_to_download = [
                 "S2A_T08VPH_20240504T195929_L2A",
@@ -60,5 +60,15 @@ pub mod sentinel2level2 {
             name = "True Color"
             download = true
         }).expect("Toml syntax error")
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_image_selection_template_deserializes() {
+            let template = image_selection_template();
+        }
     }
 }

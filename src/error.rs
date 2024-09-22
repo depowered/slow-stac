@@ -1,6 +1,6 @@
 use aws_sdk_s3::operation::get_object::GetObjectError;
 use aws_sdk_s3::operation::head_object::HeadObjectError;
-use derive_more::From;
+use derive_more::{From, FromStrError};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -24,9 +24,16 @@ pub enum Error {
     #[from]
     SerializeToml(toml::ser::Error),
 
+    // -- Download Plan
+    #[from]
+    DeserializeJson(serde_json::Error),
+    SerializeJson(serde_json::Error),
+
     // -- Collection
     #[from]
     FetchItem(reqwest::Error),
+    #[from]
+    NoMatchingVariant(FromStrError),
 
     #[from]
     IO(std::io::Error),
