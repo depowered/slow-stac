@@ -38,6 +38,9 @@ pub enum Error {
     #[from]
     NoMatchingVariant(FromStrError),
 
+    #[from(roxmltree::Error, std::string::FromUtf8Error)]
+    ManifestError,
+
     #[from]
     IO(std::io::Error),
 
