@@ -4,7 +4,7 @@ pub mod sentinel2level2 {
     use crate::Result;
     use crate::{Client, CollectionKind};
     use crate::{DownloadPlan, DownloadTask, Error};
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
         let url = format!(
@@ -16,7 +16,7 @@ pub mod sentinel2level2 {
     pub async fn create_download_plan(
         client: &Client,
         image_selection: &ImageSelection,
-        output_dir: PathBuf,
+        output_dir: &Path,
     ) -> Result<DownloadPlan> {
         let ids_to_download = image_selection
             .ids_to_download()
@@ -54,7 +54,7 @@ pub mod sentinel2level2 {
     }
 
     pub fn image_selection_template() -> ImageSelection {
-        let kind: String = CollectionKind::CopernicusSentinel2Level2A.into();
+        let kind: String = CollectionKind::Element84Sentinel2Level2A.into();
         ImageSelection::from_template(&toml::toml! {
             collection_kind = kind
 

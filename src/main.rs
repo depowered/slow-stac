@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use slow_stac_reorg::CollectionKind;
 use slow_stac_reorg::ImageSelection;
 use slow_stac_reorg::Result;
+use slow_stac_reorg::{CollectionKind, DownloadPlan};
 use std::path::PathBuf;
 
 /// A tool for downloading satellite imagery from S3 on slow or unstable connections
@@ -11,9 +11,6 @@ struct Cli {
     /// AWS profile name to get credentials from
     #[arg(long)]
     aws_profile: Option<String>,
-
-    /// Collection to retrieve images from
-    collection: Collection,
 
     #[command(subcommand)]
     command: Command,
@@ -31,13 +28,16 @@ enum Collection {
 enum Command {
     /// Select the images to download
     Select {
+        /// Collection to retrieve images from
+        collection: Collection,
+
         /// Path to write the .toml for image selection
-        selection: PathBuf,
+        selection_toml: PathBuf,
     },
     /// Prepare the download plan
     Plan {
         /// Path to read the .toml for image selection
-        selection: PathBuf,
+        selection_toml: PathBuf,
 
         /// Directory to save downloaded images
         output_dir: PathBuf,
@@ -45,7 +45,7 @@ enum Command {
     /// Execute the download plan
     Download {
         /// Json file defining images to download
-        plan: PathBuf,
+        plan_json: PathBuf,
     },
 }
 
@@ -61,26 +61,42 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Command::Select { selection } => {
-            let collection = map_cli_collection(&cli.collection);
-            let image_selection = collection.image_selection_template();
-            print!("Writing image selection .toml to {:?}", selection);
-            image_selection.write(selection)?;
+        Command::Select {
+            collection,
+            selection_toml,
+        } => {
+            let kind = map_cli_collection(collection);
+            let image_selection = kind.image_selection_template();
+            print!("Writing image selection .toml to {:?}", selection_toml);
+            image_selection.write(selection_toml)?;
         }
         Command::Plan {
-            selection,
+            selection_toml,
             output_dir,
         } => {
-            println!("Reading selection toml from {:?}", selection);
-            let _image_selection = ImageSelection::read(selection)?;
+            println!("Reading selection toml from {:?}", selection_toml);
 
-            let _collection = map_cli_collection(&cli.collection);
+            let image_selection = ImageSelection::read(selection_toml)?;
+            let collection = image_selection.collection_kind()?;
+            let client = collection.create_client(cli.aws_profile).await?;
 
-            // TODO: Transform image selection into download plan
-            println!("Writing plan json to {:?}", output_dir);
+            println!("Building download plan");
+            // TODO: Resolve output_dir before passing to create_download_plan
+            let plan = collection
+                .create_download_plan(&client, &image_selection, output_dir)
+                .await?;
+
+            let output = output_dir
+                .join(selection_toml.file_stem().unwrap_or_default())
+                .with_extension("json");
+            println!("Writing plan json to {:?}", output);
+            let _ = plan.write(output);
         }
-        Command::Download { plan } => {
+        Command::Download { plan_json: plan } => {
             println!("Reading plan json from {:?}", plan);
+            let plan = DownloadPlan::read(plan)?;
+            let collection = plan.kind;
+            let _client = collection.create_client(cli.aws_profile).await?;
 
             // TODO: Implement download loop
             print!("Downloading images");

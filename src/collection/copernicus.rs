@@ -4,7 +4,7 @@ pub mod sentinel2level2 {
     use crate::{Client, CollectionKind};
     use crate::{DownloadTask, Result};
     use crate::{Error, ImageSelection};
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
         let url = format!(
@@ -17,7 +17,7 @@ pub mod sentinel2level2 {
     pub async fn create_download_plan(
         client: &Client,
         image_selection: &ImageSelection,
-        output_dir: PathBuf,
+        output_dir: &Path,
     ) -> Result<DownloadPlan> {
         let ids_to_download = image_selection
             .ids_to_download()
@@ -34,7 +34,7 @@ pub mod sentinel2level2 {
             // fetch manifest
             let (bucket, prefix) = manifest::extract_bucket_and_prefix(&item)
                 .ok_or(Error::S3UrlParseError(String::from("")))?;
-            let manifest_key = format!("{}/{}", prefix, "manifest.xml");
+            let manifest_key = format!("{}/{}", prefix, "manifest.safe");
 
             let manifest_content = client
                 .s3_get_object(&bucket, &manifest_key, None)

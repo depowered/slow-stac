@@ -3,7 +3,7 @@ use crate::image_selection::ImageSelection;
 use crate::{Client, Error, Result};
 use derive_more::FromStr;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::Path;
 
 pub mod copernicus;
 pub mod element84;
@@ -88,7 +88,7 @@ impl CollectionKind {
         &self,
         client: &Client,
         image_selection: &ImageSelection,
-        output_dir: PathBuf,
+        output_dir: &Path,
     ) -> Result<DownloadPlan> {
         let plan = match self {
             CollectionKind::Element84Sentinel2Level2A => {
