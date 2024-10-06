@@ -1,9 +1,10 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use slow_stac_reorg::ImageSelection;
+use resolve_path::PathResolveExt;
 use slow_stac_reorg::Result;
 use slow_stac_reorg::{CollectionKind, DownloadPlan};
+use slow_stac_reorg::{ImageSelection, Range};
 use std::path::PathBuf;
-use resolve_path::PathResolveExt;
+use std::io::Write;
 
 /// A tool for downloading satellite imagery from S3 on slow or unstable connections
 #[derive(Parser)]
@@ -82,7 +83,7 @@ async fn main() -> Result<()> {
             let client = collection.create_client(cli.aws_profile).await?;
 
             println!("Building download plan");
-            let output_dir= output_dir.resolve();
+            let output_dir = output_dir.resolve();
             let plan = collection
                 .create_download_plan(&client, &image_selection, &output_dir)
                 .await?;
@@ -97,10 +98,62 @@ async fn main() -> Result<()> {
             println!("Reading plan json from {:?}", plan);
             let plan = DownloadPlan::read(plan)?;
             let collection = plan.kind;
-            let _client = collection.create_client(cli.aws_profile).await?;
+            let client = collection.create_client(cli.aws_profile).await?;
 
-            // TODO: Implement download loop
-            print!("Downloading images");
+            for task in plan.tasks {
+                // Check if the output file already exists; moving onto the next task if so
+                if task.output.exists() {
+                    println!("Output file already exists");
+                    continue;
+                }
+                // Make parent directories as necessary
+                let parent_dir = task.output.parent().unwrap();
+                if !parent_dir.exists() {
+                    std::fs::create_dir_all(parent_dir)?;
+                }
+                // Check if partial file exists and get its size
+                let mut partial = task.output.file_name().unwrap_or_default().to_os_string();
+                partial.push(".partial");
+                let mut partial_file = std::fs::OpenOptions::new()
+                    .read(true)
+                    .create(true)
+                    .append(true)
+                    .open(&partial)?;
+                let mut partial_size = partial_file.metadata()?.len();
+
+                // Get object details from S3
+                let head_object = client.s3_head_object(&task.bucket, &task.key).await?;
+                let total_size = head_object
+                    .content_length()
+                    .expect("HeadObjects contains content_length")
+                    as u64;
+
+                let progress = (partial_size as f64 / total_size as f64) * 100.;
+                if progress > 0.0 {
+                    println!("Resuming download from {:.2}% completion", progress);
+                }
+
+                if partial_size < total_size {
+                    println!("Downloading...");
+
+                    let mut object = client.s3_get_object(
+                        &task.bucket,
+                        &task.key,
+                        Some(Range {
+                            start_byte: partial_size,
+                            end_byte: total_size - 1,
+                        }),
+                    ).await?;
+
+                    while let Some(bytes) = object.body.try_next().await? {
+                        let bytes_len = bytes.len() as u64;
+                        partial_file.write_all(&bytes)?;
+                        partial_size += bytes_len;
+                    }
+                }
+                // Rename the file to remove .partial suffix
+                std::fs::rename(partial, task.output)?;
+            }
         }
     }
     Ok(())

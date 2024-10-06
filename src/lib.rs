@@ -5,7 +5,7 @@ mod error;
 mod image_selection;
 pub mod util;
 
-pub use client::{Client, ClientBuilder};
+pub use client::{Client, ClientBuilder, Range};
 pub use collection::copernicus;
 pub use collection::element84;
 pub use collection::CollectionKind;

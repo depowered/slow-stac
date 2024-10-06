@@ -48,7 +48,7 @@ pub mod sentinel2level2 {
             }
         }
         Ok(DownloadPlan {
-            kind: CollectionKind::CopernicusSentinel2Level2A,
+            kind: CollectionKind::Element84Sentinel2Level2A,
             tasks,
         })
     }

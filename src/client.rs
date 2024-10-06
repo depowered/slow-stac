@@ -4,8 +4,8 @@ use aws_sdk_s3::operation::head_object::HeadObjectOutput;
 use crate::{Error, Result};
 
 pub struct Range {
-    start_byte: u64,
-    end_byte: u64,
+    pub start_byte: u64,
+    pub end_byte: u64,
 }
 
 pub struct Client {
