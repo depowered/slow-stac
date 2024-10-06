@@ -1,10 +1,11 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use indicatif::{ProgressBar, ProgressStyle};
 use resolve_path::PathResolveExt;
 use slow_stac_reorg::Result;
 use slow_stac_reorg::{CollectionKind, DownloadPlan};
 use slow_stac_reorg::{ImageSelection, Range};
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
 
 /// A tool for downloading satellite imagery from S3 on slow or unstable connections
 #[derive(Parser)]
@@ -100,10 +101,17 @@ async fn main() -> Result<()> {
             let collection = plan.kind;
             let client = collection.create_client(cli.aws_profile).await?;
 
-            for task in plan.tasks {
+            let task_count = plan.tasks.len();
+            println!("Found {task_count} task(s) in plan");
+
+            for (index, task) in plan.tasks.iter().enumerate() {
+                let count = index + 1;
+                let n_of_m = format!("[{count}/{task_count}]");
+                println!("{n_of_m} {task:?}");
+
                 // Check if the output file already exists; moving onto the next task if so
                 if task.output.exists() {
-                    println!("Output file already exists");
+                    println!("{n_of_m} Already downloaded");
                     continue;
                 }
                 // Make parent directories as necessary
@@ -128,33 +136,42 @@ async fn main() -> Result<()> {
                     .expect("HeadObjects contains content_length")
                     as u64;
 
-                let progress = (partial_size as f64 / total_size as f64) * 100.;
-                if progress > 0.0 {
-                    println!("Resuming download from {:.2}% completion", progress);
-                }
-
                 if partial_size < total_size {
-                    println!("Downloading...");
+                    let mut object = client
+                        .s3_get_object(
+                            &task.bucket,
+                            &task.key,
+                            Some(Range {
+                                start_byte: partial_size,
+                                end_byte: total_size - 1,
+                            }),
+                        )
+                        .await?;
 
-                    let mut object = client.s3_get_object(
-                        &task.bucket,
-                        &task.key,
-                        Some(Range {
-                            start_byte: partial_size,
-                            end_byte: total_size - 1,
-                        }),
-                    ).await?;
-
+                    let pb = init_progress_bar(&n_of_m, partial_size, total_size);
                     while let Some(bytes) = object.body.try_next().await? {
                         let bytes_len = bytes.len() as u64;
                         partial_file.write_all(&bytes)?;
                         partial_size += bytes_len;
+                        pb.set_position(partial_size);
                     }
+                    pb.finish();
                 }
                 // Rename the file to remove .partial suffix
-                std::fs::rename(partial, task.output)?;
+                std::fs::rename(partial, &task.output)?;
+                println!("{n_of_m} Download complete");
             }
         }
     }
     Ok(())
+}
+
+fn init_progress_bar(prefix: &str, partial_size: u64, total_size: u64) -> ProgressBar {
+    let pb = ProgressBar::new(total_size);
+    pb.set_style(ProgressStyle::with_template("{prefix} [{elapsed_precise}] [{bar:50.cyan/blue}] [{percent}%] {decimal_bytes}/{decimal_total_bytes} ({decimal_bytes_per_sec}) (Remaining: {eta})")
+        .unwrap()
+        .progress_chars("#>-"));
+    pb.set_prefix(prefix.to_owned());
+    pb.set_position(partial_size);
+    pb
 }

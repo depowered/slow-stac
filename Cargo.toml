@@ -10,6 +10,7 @@ aws-sdk-s3 = "1.51.0"
 aws-smithy-types = "1.2.6"
 clap = { version = "4.5.18", features = ["derive"] }
 derive_more = {version = "1.0.0", features = ["default", "from", "from_str"]}
+indicatif = "0.17.8"
 reqwest = "0.12.7"
 resolve-path = "0.1.0"
 roxmltree = "0.20.0"
