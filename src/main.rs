@@ -3,6 +3,7 @@ use slow_stac_reorg::ImageSelection;
 use slow_stac_reorg::Result;
 use slow_stac_reorg::{CollectionKind, DownloadPlan};
 use std::path::PathBuf;
+use resolve_path::PathResolveExt;
 
 /// A tool for downloading satellite imagery from S3 on slow or unstable connections
 #[derive(Parser)]
@@ -81,9 +82,9 @@ async fn main() -> Result<()> {
             let client = collection.create_client(cli.aws_profile).await?;
 
             println!("Building download plan");
-            // TODO: Resolve output_dir before passing to create_download_plan
+            let output_dir= output_dir.resolve();
             let plan = collection
-                .create_download_plan(&client, &image_selection, output_dir)
+                .create_download_plan(&client, &image_selection, &output_dir)
                 .await?;
 
             let output = output_dir
