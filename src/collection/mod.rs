@@ -58,6 +58,7 @@ impl CollectionKind {
             Some(p) => {
                 Client::builder()
                     .with_aws_profile(&p)
+                    .set_endpoint_url("https://eodata.dataspace.copernicus.eu")
                     .set_region(&self.region_name())
                     .build()
                     .await?

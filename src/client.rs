@@ -67,6 +67,7 @@ impl Client {
 pub struct ClientBuilder {
     config_loader: Option<aws_config::ConfigLoader>,
     region: Option<String>,
+    endpoint_url: Option<String>,
 }
 
 impl ClientBuilder {
@@ -82,17 +83,23 @@ impl ClientBuilder {
         self
     }
 
+    pub fn set_endpoint_url(mut self, url: &str) -> Self {
+        self.endpoint_url = Some(String::from(url));
+        self
+    }
+
     pub fn set_region(mut self, name: &str) -> Self {
-        self.region = Some(name.to_owned());
+        self.region = Some(String::from(name));
         self
     }
 
     pub async fn build(self) -> Result<Client> {
-        let base_config = self
-            .config_loader
-            .ok_or_else(|| Error::AWSProfileNotSet)?
-            .load()
-            .await;
+        let loader = self.config_loader.ok_or_else(|| Error::AWSProfileNotSet)?;
+        let loader = match self.endpoint_url {
+            Some(url) => loader.endpoint_url(url),
+            None => loader,
+        };
+        let base_config = loader.load().await;
         let region = self.region.ok_or_else(|| Error::AWSRegionNotSet)?;
         let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
             .region(aws_sdk_s3::config::Region::new(region))
