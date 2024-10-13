@@ -35,21 +35,18 @@ enum Command {
         /// Collection to retrieve images from
         collection: Collection,
 
-        /// Path to write the .toml for image selection
-        selection_toml: PathBuf,
+        /// Directory to save downloaded images
+        output_dir: PathBuf,
     },
     /// Prepare the download plan
     Plan {
-        /// Path to read the .toml for image selection
-        selection_toml: PathBuf,
-
         /// Directory to save downloaded images
         output_dir: PathBuf,
     },
     /// Execute the download plan
     Download {
-        /// Json file defining images to download
-        plan_json: PathBuf,
+        /// Directory to save downloaded images
+        output_dir: PathBuf,
     },
 }
 
@@ -67,20 +64,30 @@ async fn main() -> Result<()> {
     match &cli.command {
         Command::Select {
             collection,
-            selection_toml,
+            output_dir,
         } => {
             let adapter = get_adapter_kind(collection);
             let image_selection = adapter.image_selection_template();
-            print!("Writing image selection .toml to {:?}", selection_toml);
-            image_selection.write(selection_toml)?;
+
+            if !output_dir.exists() {
+                panic!("Output directory does not exist: {:?}", output_dir);
+            }
+
+            let output = output_dir.join("image_selection.toml");
+            if output.exists() {
+                panic!("image_selection.toml already exists at {:?}", output_dir)
+            }
+
+            println!("Writing image selection toml to {:?}", output);
+            image_selection.write(output)?;
         }
         Command::Plan {
-            selection_toml,
             output_dir,
         } => {
+            let selection_toml = output_dir.join("image_selection.toml");
             println!("Reading selection toml from {:?}", selection_toml);
 
-            let image_selection = ImageSelection::read(selection_toml)?;
+            let image_selection = ImageSelection::read(&selection_toml)?;
             let adapter = image_selection.adapter_kind()?;
             let client = adapter.create_client(cli.aws_profile).await?;
 
@@ -90,15 +97,14 @@ async fn main() -> Result<()> {
                 .create_download_plan(&client, &image_selection, &output_dir)
                 .await?;
 
-            let output = output_dir
-                .join(selection_toml.file_stem().unwrap_or_default())
-                .with_extension("json");
+            let output = output_dir.join("download_plan.json");
             println!("Writing plan json to {:?}", output);
             let _ = plan.write(output);
         }
-        Command::Download { plan_json: plan } => {
-            println!("Reading plan json from {:?}", plan);
-            let plan = DownloadPlan::read(plan)?;
+        Command::Download { output_dir } => {
+            let download_plan = output_dir.join("download_plan.json");
+            println!("Reading plan json from {:?}", download_plan);
+            let plan = DownloadPlan::read(&download_plan)?;
             let adapter = plan.kind;
             let client = adapter.create_client(cli.aws_profile).await?;
 
