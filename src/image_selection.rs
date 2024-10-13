@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-
-use crate::{CollectionKind, Result};
+use crate::adapter::AdapterKind;
+use crate::Result;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ImageSelection {
-    collection_kind: String,
+    adapter_kind: String,
     name: String,
     description: String,
     web_app: String,
@@ -76,8 +76,8 @@ impl ImageSelection {
 
 // Util functions
 impl ImageSelection {
-    pub fn collection_kind(&self) -> Result<CollectionKind> {
-        let kind = self.collection_kind.as_str().parse::<CollectionKind>()?;
+    pub fn adapter_kind(&self) -> Result<AdapterKind> {
+        let kind = self.adapter_kind.as_str().parse::<AdapterKind>()?;
         Ok(kind)
     }
 }

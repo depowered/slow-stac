@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use indicatif::{ProgressBar, ProgressStyle};
 use resolve_path::PathResolveExt;
+use slow_stac_reorg::adapter::AdapterKind;
+use slow_stac_reorg::DownloadPlan;
 use slow_stac_reorg::Result;
-use slow_stac_reorg::{CollectionKind, DownloadPlan};
 use slow_stac_reorg::{ImageSelection, Range};
 use std::io::Write;
 use std::path::PathBuf;
@@ -52,10 +53,10 @@ enum Command {
     },
 }
 
-fn map_cli_collection(c: &Collection) -> CollectionKind {
+fn get_adapter_kind(c: &Collection) -> AdapterKind {
     match c {
-        Collection::E84Sentinel2 => CollectionKind::Element84Sentinel2Level2A,
-        Collection::CopSentinel2 => CollectionKind::CopernicusSentinel2Level2A,
+        Collection::CopSentinel2 => AdapterKind::CopernicusSentinel2Level2A,
+        Collection::E84Sentinel2 => AdapterKind::Element84Sentinel2Level2A,
     }
 }
 
@@ -68,8 +69,8 @@ async fn main() -> Result<()> {
             collection,
             selection_toml,
         } => {
-            let kind = map_cli_collection(collection);
-            let image_selection = kind.image_selection_template();
+            let adapter = get_adapter_kind(collection);
+            let image_selection = adapter.image_selection_template();
             print!("Writing image selection .toml to {:?}", selection_toml);
             image_selection.write(selection_toml)?;
         }
@@ -80,12 +81,12 @@ async fn main() -> Result<()> {
             println!("Reading selection toml from {:?}", selection_toml);
 
             let image_selection = ImageSelection::read(selection_toml)?;
-            let collection = image_selection.collection_kind()?;
-            let client = collection.create_client(cli.aws_profile).await?;
+            let adapter = image_selection.adapter_kind()?;
+            let client = adapter.create_client(cli.aws_profile).await?;
 
             println!("Building download plan");
             let output_dir = output_dir.resolve();
-            let plan = collection
+            let plan = adapter
                 .create_download_plan(&client, &image_selection, &output_dir)
                 .await?;
 
@@ -98,8 +99,8 @@ async fn main() -> Result<()> {
         Command::Download { plan_json: plan } => {
             println!("Reading plan json from {:?}", plan);
             let plan = DownloadPlan::read(plan)?;
-            let collection = plan.kind;
-            let client = collection.create_client(cli.aws_profile).await?;
+            let adapter = plan.kind;
+            let client = adapter.create_client(cli.aws_profile).await?;
 
             let task_count = plan.tasks.len();
             println!("Found {task_count} task(s) in plan");

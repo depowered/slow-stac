@@ -1,80 +1,18 @@
-pub mod sentinel2level2 {
-    use super::manifest;
-    use crate::download_plan::DownloadPlan;
-    use crate::{Client, CollectionKind};
-    use crate::{DownloadTask, Result};
-    use crate::{Error, ImageSelection};
-    use std::path::Path;
+use crate::adapter::{Adapter, AdapterKind};
+use crate::{Client, DownloadPlan, DownloadTask, Error, ImageSelection};
+use std::path::Path;
 
-    pub async fn get_stac_item(client: &Client, id: &str) -> Result<stac::Item> {
-        let url = format!(
-            "https://catalogue.dataspace.copernicus.eu/stac/collections/SENTINEL-2/items/{id}"
-        );
-        let item = client.web_get(&url).await?.json::<stac::Item>().await?;
-        Ok(item)
+pub struct Sentinel2Level2A;
+
+impl Adapter for Sentinel2Level2A {
+    fn adapter_name(_kind: AdapterKind) -> String {
+        String::from("CopernicusSentinel2Level2A")
     }
 
-    pub async fn create_download_plan(
-        client: &Client,
-        image_selection: &ImageSelection,
-        output_dir: &Path,
-    ) -> Result<DownloadPlan> {
-        let ids_to_download = image_selection
-            .ids_to_download()
-            .ok_or(Error::NoIdsToDownload)?;
-        let products_to_download = image_selection
-            .products_to_download()
-            .ok_or(Error::NoProductsSelected)?;
-
-        let mut tasks: Vec<DownloadTask> = vec![];
-
-        for id in ids_to_download {
-            let item = get_stac_item(client, &id).await?;
-
-            // fetch manifest
-            let (bucket, prefix) = manifest::extract_bucket_and_prefix(&item)
-                .ok_or(Error::S3UrlParseError(String::from("")))?;
-            let manifest_key = format!("{}/{}", prefix, "manifest.safe");
-
-            let manifest_content = client
-                .s3_get_object(&bucket, &manifest_key, None)
-                .await?
-                .body
-                .collect()
-                .await?
-                .to_vec();
-
-            let manifest = manifest::Manifest{
-                bucket,
-                prefix,
-                content: String::from_utf8(manifest_content)?,
-            };
-            let data_objects = manifest.parse()?;
-
-            let filtered_data_objects = manifest::filter_data_objects(&products_to_download, &data_objects)?;
-
-            // Create a DownloadTask for each filtered_data_object
-            for data_obj in filtered_data_objects {
-                let key = format!("{}/{}", &manifest.prefix, data_obj.relative_href);
-
-                let file_name = Path::new(&key).file_name().unwrap();
-                let output = output_dir.join(&id).join(file_name);
-
-                let task = DownloadTask {bucket: manifest.bucket.clone(), key, output };
-                tasks.push(task);
-            }
-        }
-
-        Ok(DownloadPlan {
-            kind: CollectionKind::CopernicusSentinel2Level2A,
-            tasks,
-        })
-    }
-
-    pub fn image_selection_template() -> ImageSelection {
-        let kind: String = CollectionKind::CopernicusSentinel2Level2A.into();
+    fn image_selection_template(kind: AdapterKind) -> ImageSelection {
+        let adapter_kind: String = kind.into();
         ImageSelection::from_template(&toml::toml! {
-            collection_kind = kind
+            adapter_kind = adapter_kind
 
             name = "Sentinel-2 Level 2A Surface Reflectance"
 
@@ -121,21 +59,98 @@ pub mod sentinel2level2 {
         }).expect("Compiler will catch any syntax errors")
     }
 
-    #[cfg(test)]
-    mod tests {
-        #[test]
-        fn test_image_selection_template_deserializes() {
-            let _template = crate::element84::sentinel2level2::image_selection_template();
+    async fn create_client(_kind: AdapterKind, profile: Option<String>) -> crate::Result<Client> {
+        match profile {
+            Some(p) => Ok(Client::builder()
+                .with_aws_profile(&p)
+                .set_endpoint_url("https://eodata.dataspace.copernicus.eu")
+                .set_region("us-west-2")
+                .build()
+                .await?),
+            None => Err(Error::AWSProfileNotSet),
         }
     }
-}
 
+    async fn get_stac_item(
+        _kind: AdapterKind,
+        client: &Client,
+        id: &str,
+    ) -> crate::Result<stac::Item> {
+        let url = format!(
+            "https://catalogue.dataspace.copernicus.eu/stac/collections/SENTINEL-2/items/{id}"
+        );
+        let item = client.web_get(&url).await?.json::<stac::Item>().await?;
+        Ok(item)
+    }
+
+    async fn create_download_plan(
+        kind: AdapterKind,
+        client: &Client,
+        image_selection: &ImageSelection,
+        output_dir: &Path,
+    ) -> crate::Result<DownloadPlan> {
+        let ids_to_download = image_selection
+            .ids_to_download()
+            .ok_or(Error::NoIdsToDownload)?;
+        let products_to_download = image_selection
+            .products_to_download()
+            .ok_or(Error::NoProductsSelected)?;
+
+        let mut tasks: Vec<DownloadTask> = vec![];
+
+        for id in ids_to_download {
+            let item = Sentinel2Level2A::get_stac_item(kind, client, &id).await?;
+
+            // fetch manifest
+            let (bucket, prefix) = manifest::extract_bucket_and_prefix(&item)
+                .ok_or(Error::S3UrlParseError(String::from("")))?;
+            let manifest_key = format!("{}/{}", prefix, "manifest.safe");
+
+            let manifest_content = client
+                .s3_get_object(&bucket, &manifest_key, None)
+                .await?
+                .body
+                .collect()
+                .await?
+                .to_vec();
+
+            let manifest = manifest::Manifest {
+                bucket,
+                prefix,
+                content: String::from_utf8(manifest_content)?,
+            };
+            let data_objects = manifest.parse()?;
+
+            let filtered_data_objects =
+                manifest::filter_data_objects(&products_to_download, &data_objects)?;
+
+            // Create a DownloadTask for each filtered_data_object
+            for data_obj in filtered_data_objects {
+                let key = format!("{}/{}", &manifest.prefix, data_obj.relative_href);
+
+                let file_name = Path::new(&key).file_name().unwrap();
+                let output = output_dir.join(&id).join(file_name);
+
+                let task = DownloadTask {
+                    bucket: manifest.bucket.clone(),
+                    key,
+                    output,
+                };
+                tasks.push(task);
+            }
+        }
+        Ok(DownloadPlan {
+            kind: AdapterKind::CopernicusSentinel2Level2A,
+            tasks,
+        })
+    }
+}
 mod manifest {
-    use std::collections::HashMap;
-    use roxmltree::Node;
-    use stac::Item;
     use crate::image_selection::Product;
     use crate::{Error, Result};
+    use roxmltree::Node;
+    use stac::Item;
+    use std::collections::HashMap;
 
     pub struct Manifest {
         pub bucket: String,
@@ -149,7 +164,8 @@ mod manifest {
             let doc = roxmltree::Document::parse(&self.content)?;
 
             let data_object_section = doc
-                .descendants().find(|n| n.has_tag_name("dataObjectSection"))
+                .descendants()
+                .find(|n| n.has_tag_name("dataObjectSection"))
                 .ok_or(Error::ManifestError)?;
 
             for data_object in data_object_section.children() {
@@ -183,7 +199,8 @@ mod manifest {
         data_objects: &[DataObject],
     ) -> Result<Vec<DataObject>> {
         // Create a HashMap for faster lookup
-        let data_object_map: HashMap<_, _> = data_objects.iter().map(|obj| (&obj.id, obj)).collect();
+        let data_object_map: HashMap<_, _> =
+            data_objects.iter().map(|obj| (&obj.id, obj)).collect();
 
         products_to_download
             .iter()
@@ -230,14 +247,16 @@ mod manifest {
 
         fn extract_filesize(data_object: Node) -> Option<u64> {
             let byte_stream = data_object
-                .children().find(|n| n.has_tag_name("byteStream"))?;
+                .children()
+                .find(|n| n.has_tag_name("byteStream"))?;
             let filesize: u64 = byte_stream.attribute("size")?.parse().ok()?;
             Some(filesize)
         }
 
         fn extract_relative_href(data_object: Node) -> Option<String> {
             let file_location = data_object
-                .descendants().find(|n| n.has_tag_name("fileLocation"))?;
+                .descendants()
+                .find(|n| n.has_tag_name("fileLocation"))?;
             let relative_href = file_location
                 .attribute("href")?
                 .strip_prefix("./")?
@@ -247,14 +266,16 @@ mod manifest {
 
         fn extract_checksum_algorithm(data_object: Node) -> Option<String> {
             let checksum = data_object
-                .descendants().find(|n| n.has_tag_name("checksum"))?;
+                .descendants()
+                .find(|n| n.has_tag_name("checksum"))?;
             let checksum_algorithm = checksum.attribute("checksumName")?.to_string();
             Some(checksum_algorithm)
         }
 
         fn extract_checksum(data_object: Node) -> Option<String> {
             let checksum = data_object
-                .descendants().find(|n| n.has_tag_name("checksum"))?;
+                .descendants()
+                .find(|n| n.has_tag_name("checksum"))?;
             let checksum = checksum.text()?.to_string();
             Some(checksum)
         }

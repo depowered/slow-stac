@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::CollectionKind;
+use crate::adapter::AdapterKind;
 use crate::Result;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DownloadPlan {
-    pub kind: CollectionKind,
+    pub kind: AdapterKind,
     pub tasks: Vec<DownloadTask>,
 }
 
